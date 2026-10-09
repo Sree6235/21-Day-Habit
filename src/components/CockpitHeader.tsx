@@ -1,5 +1,5 @@
 import React, { useState } from 'react';
-import { Flame, Calendar, Clock, RotateCcw, Volume2, VolumeX, History, Sparkles } from 'lucide-react';
+import { Flame, Calendar, Clock, RotateCcw, Volume2, VolumeX, History, Sparkles, Settings } from 'lucide-react';
 import type { Challenge } from '../types/challenge';
 import { soundFx } from '../utils/sound';
 
@@ -10,6 +10,7 @@ interface CockpitHeaderProps {
   completionPercentage: number;
   onOpenReset: () => void;
   onOpenHistory: () => void;
+  onOpenSettings: () => void;
   historyCount: number;
 }
 
@@ -20,6 +21,7 @@ export const CockpitHeader: React.FC<CockpitHeaderProps> = ({
   completionPercentage,
   onOpenReset,
   onOpenHistory,
+  onOpenSettings,
   historyCount,
 }) => {
   const [soundEnabled, setSoundEnabled] = useState(soundFx.isEnabled());
@@ -50,6 +52,15 @@ export const CockpitHeader: React.FC<CockpitHeaderProps> = ({
           </div>
 
           <div className="flex items-center gap-2">
+            {/* Settings Modal Button */}
+            <button
+              onClick={onOpenSettings}
+              title="Mantra Settings & Typing Gatekeeper"
+              className="p-2 rounded-lg bg-slate-900 border border-slate-800 text-slate-400 hover:text-slate-200 hover:bg-slate-800 transition-colors"
+            >
+              <Settings className="w-4 h-4 text-slate-400" />
+            </button>
+
             {/* Sound Toggle */}
             <button
               onClick={handleToggleSound}

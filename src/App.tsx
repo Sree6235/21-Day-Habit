@@ -12,6 +12,16 @@ import { CompletionSummaryModal } from './components/CompletionSummaryModal';
 import { DayDetailModal } from './components/DayDetailModal';
 import { ResetConfirmModal } from './components/ResetConfirmModal';
 import { HistoryModal } from './components/HistoryModal';
+import { CommitmentGatekeeper } from './components/CommitmentGatekeeper';
+import { SettingsModal } from './components/SettingsModal';
+import {
+  isGateUnlocked,
+  getTodayMantra,
+  unlockGateForToday,
+  bypassGate10Min,
+  relockGate,
+  getStoredMantras,
+} from './utils/mantras';
 import type { DayLog } from './types/challenge';
 import { ShieldCheck, Sparkles } from 'lucide-react';
 
@@ -40,6 +50,11 @@ export function App() {
     isAllCompleted,
   } = usePersonalChallenge();
 
+  // Gatekeeper Typing Challenge State
+  const [isUnlocked, setIsUnlocked] = useState<boolean>(() => isGateUnlocked());
+  const [currentMantra, setCurrentMantra] = useState<string>(() => getTodayMantra());
+  const [isSettingsOpen, setIsSettingsOpen] = useState(false);
+
   // Navigation view mode: 'single' (3x7 matrix focus) or 'overview' (multi-habit cockpit)
   const [viewMode, setViewMode] = useState<'single' | 'overview'>('single');
 
@@ -49,6 +64,30 @@ export function App() {
   const [isResetModalOpen, setIsResetModalOpen] = useState(false);
   const [isHistoryModalOpen, setIsHistoryModalOpen] = useState(false);
   const [showCompletionSummaryManual, setShowCompletionSummaryManual] = useState(false);
+
+  const handleUnlock = () => {
+    unlockGateForToday();
+    setIsUnlocked(true);
+  };
+
+  const handleBypass = () => {
+    bypassGate10Min();
+    setIsUnlocked(true);
+  };
+
+  const handleRelockScreen = () => {
+    relockGate();
+    setIsUnlocked(false);
+    setCurrentMantra(getTodayMantra());
+  };
+
+  const handleRefreshMantra = () => {
+    const list = getStoredMantras();
+    const filtered = list.filter((m) => m !== currentMantra);
+    const next =
+      filtered.length > 0 ? filtered[Math.floor(Math.random() * filtered.length)] : currentMantra;
+    setCurrentMantra(next);
+  };
 
   // If still reading from localStorage on first render, show smooth dark loader
   if (!isLoaded) {
@@ -93,6 +132,16 @@ export function App() {
 
   return (
     <div className="min-h-screen bg-[#080c14] text-slate-100 flex flex-col selection:bg-emerald-500 selection:text-black">
+      {/* Commitment Gatekeeper Typing Lock Screen */}
+      {!isUnlocked && (
+        <CommitmentGatekeeper
+          mantra={currentMantra}
+          onUnlock={handleUnlock}
+          onBypass={handleBypass}
+          onRefreshMantra={handleRefreshMantra}
+        />
+      )}
+
       {/* Top Challenge Switcher & Multi-Habit Tab Bar */}
       <ChallengeSwitcher
         challenges={challenges}
@@ -101,6 +150,7 @@ export function App() {
         onSelectChallenge={handleSelectChallenge}
         onSelectOverview={() => setViewMode('overview')}
         onOpenCreateModal={() => setIsCreateModalOpen(true)}
+        onOpenSettings={() => setIsSettingsOpen(true)}
       />
 
       {/* Main View: Overview OR Single Focus Cockpit */}
@@ -126,6 +176,7 @@ export function App() {
             completionPercentage={completionPercentage}
             onOpenReset={() => setIsResetModalOpen(true)}
             onOpenHistory={() => setIsHistoryModalOpen(true)}
+            onOpenSettings={() => setIsSettingsOpen(true)}
             historyCount={history.length}
           />
 
@@ -174,6 +225,13 @@ export function App() {
           <span className="block mt-0.5 text-slate-600">— James Clear, Atomic Habits</span>
         </p>
       </footer>
+
+      {/* Modal: Settings & Mantra Customizer */}
+      <SettingsModal
+        isOpen={isSettingsOpen}
+        onClose={() => setIsSettingsOpen(false)}
+        onRelockScreen={handleRelockScreen}
+      />
 
       {/* Modal: Create New Challenge */}
       <CreateChallengeModal

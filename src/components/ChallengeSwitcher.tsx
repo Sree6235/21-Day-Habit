@@ -1,7 +1,7 @@
 import React from 'react';
 import type { Challenge } from '../types/challenge';
 import { calculateChallengeStats } from '../hooks/usePersonalChallenge';
-import { Plus, Flame, CheckCircle, LayoutGrid, Sparkles, BookOpen, Droplets, Apple, Footprints, Zap, Target } from 'lucide-react';
+import { Plus, Flame, CheckCircle, LayoutGrid, Sparkles, BookOpen, Droplets, Apple, Footprints, Zap, Target, Settings } from 'lucide-react';
 
 interface ChallengeSwitcherProps {
   challenges: Challenge[];
@@ -10,6 +10,7 @@ interface ChallengeSwitcherProps {
   onSelectChallenge: (id: string) => void;
   onSelectOverview: () => void;
   onOpenCreateModal: () => void;
+  onOpenSettings?: () => void;
 }
 
 export const ChallengeSwitcher: React.FC<ChallengeSwitcherProps> = ({
@@ -19,6 +20,7 @@ export const ChallengeSwitcher: React.FC<ChallengeSwitcherProps> = ({
   onSelectChallenge,
   onSelectOverview,
   onOpenCreateModal,
+  onOpenSettings,
 }) => {
   const getHabitIcon = (iconName?: string, category?: string) => {
     const key = (iconName || category || '').toLowerCase();
@@ -116,14 +118,26 @@ export const ChallengeSwitcher: React.FC<ChallengeSwitcherProps> = ({
           })}
         </div>
 
-        {/* Action: + New Challenge */}
-        <button
-          onClick={onOpenCreateModal}
-          className="flex items-center gap-1.5 px-3 py-1.5 rounded-xl bg-emerald-500/15 hover:bg-emerald-500/25 border border-emerald-500/40 text-emerald-300 text-xs font-extrabold transition-all flex-shrink-0 shadow-sm shadow-emerald-500/10 cursor-pointer hover:scale-[1.02] active:scale-[0.98]"
-        >
-          <Plus className="w-3.5 h-3.5 text-emerald-400" />
-          <span className="hidden sm:inline">New Challenge</span>
-        </button>
+        {/* Actions: + New Challenge & Settings */}
+        <div className="flex items-center gap-1.5 flex-shrink-0">
+          <button
+            onClick={onOpenCreateModal}
+            className="flex items-center gap-1.5 px-3 py-1.5 rounded-xl bg-emerald-500/15 hover:bg-emerald-500/25 border border-emerald-500/40 text-emerald-300 text-xs font-extrabold transition-all shadow-sm shadow-emerald-500/10 cursor-pointer hover:scale-[1.02] active:scale-[0.98]"
+          >
+            <Plus className="w-3.5 h-3.5 text-emerald-400" />
+            <span className="hidden sm:inline">New Challenge</span>
+          </button>
+
+          {onOpenSettings && (
+            <button
+              onClick={onOpenSettings}
+              title="Mantra Settings & Typing Gatekeeper"
+              className="p-1.5 rounded-xl bg-slate-900 border border-slate-800 text-slate-400 hover:text-slate-200 hover:bg-slate-800 transition-colors"
+            >
+              <Settings className="w-3.5 h-3.5" />
+            </button>
+          )}
+        </div>
       </div>
     </div>
   );
