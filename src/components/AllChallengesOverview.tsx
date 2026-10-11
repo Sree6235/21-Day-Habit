@@ -1,5 +1,5 @@
 import React, { useState } from 'react';
-import type { Challenge, HabitEffort } from '../types/challenge';
+import type { Challenge, HabitEffort, CravingLevel } from '../types/challenge';
 import { calculateChallengeStats } from '../hooks/usePersonalChallenge';
 import {
   Flame,
@@ -16,13 +16,23 @@ import {
   Apple,
   Footprints,
   Zap,
-  Target
+  Target,
+  Shield,
+  Lightbulb,
+  AlertTriangle,
 } from 'lucide-react';
 
 interface AllChallengesOverviewProps {
   challenges: Challenge[];
   onFocusChallenge: (id: string) => void;
-  onCheckInDay: (challengeId: string, dayNumber: number, reflection?: string, effort?: HabitEffort) => void;
+  onCheckInDay: (
+    challengeId: string,
+    dayNumber: number,
+    reflection?: string,
+    effort?: HabitEffort,
+    cravingLevel?: CravingLevel,
+    isSlip?: boolean
+  ) => void;
   onUndoDay: (challengeId: string, dayNumber: number) => void;
   onArchiveChallenge: (challengeId: string) => void;
   onDeleteChallenge: (challengeId: string) => void;
@@ -38,9 +48,9 @@ export const AllChallengesOverview: React.FC<AllChallengesOverviewProps> = ({
   onDeleteChallenge,
   onOpenCreateModal,
 }) => {
-  // Track open reflection drawers per challenge: { [challengeId]: { reflection: string, effort: HabitEffort, isOpen: boolean } }
+  // Track open reflection drawers per challenge: { [challengeId]: { reflection: string, effort: HabitEffort, cravingLevel: CravingLevel, isOpen: boolean } }
   const [reflectionDrawers, setReflectionDrawers] = useState<
-    Record<string, { reflection: string; effort: HabitEffort; isOpen: boolean }>
+    Record<string, { reflection: string; effort: HabitEffort; cravingLevel: CravingLevel; isOpen: boolean }>
   >({});
 
   const toggleDrawer = (id: string) => {
@@ -49,6 +59,7 @@ export const AllChallengesOverview: React.FC<AllChallengesOverviewProps> = ({
       [id]: {
         reflection: prev[id]?.reflection || '',
         effort: prev[id]?.effort || 'normal',
+        cravingLevel: prev[id]?.cravingLevel || 'low',
         isOpen: !prev[id]?.isOpen,
       },
     }));
@@ -60,6 +71,7 @@ export const AllChallengesOverview: React.FC<AllChallengesOverviewProps> = ({
       [id]: {
         reflection: text,
         effort: prev[id]?.effort || 'normal',
+        cravingLevel: prev[id]?.cravingLevel || 'low',
         isOpen: true,
       },
     }));
@@ -71,18 +83,39 @@ export const AllChallengesOverview: React.FC<AllChallengesOverviewProps> = ({
       [id]: {
         reflection: prev[id]?.reflection || '',
         effort: effort,
+        cravingLevel: prev[id]?.cravingLevel || 'low',
         isOpen: true,
       },
     }));
   };
 
-  const handleQuickCheckIn = (chal: Challenge) => {
+  const handleCravingChange = (id: string, level: CravingLevel) => {
+    setReflectionDrawers((prev) => ({
+      ...prev,
+      [id]: {
+        reflection: prev[id]?.reflection || '',
+        effort: prev[id]?.effort || 'normal',
+        cravingLevel: level,
+        isOpen: true,
+      },
+    }));
+  };
+
+  const handleQuickCheckIn = (chal: Challenge, isSlip: boolean = false) => {
     const stats = calculateChallengeStats(chal);
     const drawerState = reflectionDrawers[chal.id];
     const reflection = drawerState?.reflection || undefined;
     const effort = drawerState?.effort || 'normal';
+    const craving = drawerState?.cravingLevel || 'low';
 
-    onCheckInDay(chal.id, stats.activeDayNumber, reflection, effort);
+    onCheckInDay(
+      chal.id,
+      stats.activeDayNumber,
+      reflection,
+      chal.habitType === 'quit' ? undefined : effort,
+      chal.habitType === 'quit' ? craving : undefined,
+      isSlip
+    );
 
     // Close drawer
     setReflectionDrawers((prev) => ({
@@ -90,13 +123,17 @@ export const AllChallengesOverview: React.FC<AllChallengesOverviewProps> = ({
       [chal.id]: {
         reflection: '',
         effort: 'normal',
+        cravingLevel: 'low',
         isOpen: false,
       },
     }));
   };
 
-  const getHabitIcon = (iconName?: string, category?: string) => {
+  const getHabitIcon = (iconName?: string, category?: string, isQuit?: boolean) => {
     const key = (iconName || category || '').toLowerCase();
+    if (isQuit || key.includes('shield')) {
+      return <Shield className="w-5 h-5 text-indigo-400" />;
+    }
     if (key.includes('book') || key.includes('read') || key.includes('mindset')) {
       return <BookOpen className="w-5 h-5 text-blue-400" />;
     }
@@ -137,7 +174,7 @@ export const AllChallengesOverview: React.FC<AllChallengesOverviewProps> = ({
               Today's Habit Command Center
             </h2>
             <p className="text-xs md:text-sm text-slate-400 mt-1 max-w-lg">
-              Check off your daily habits across all active 21-day challenges in one unified screen.
+              Monitor both your positive routines (Build) and abstinence streaks (Quit) in one unified screen.
             </p>
           </div>
 
@@ -145,7 +182,7 @@ export const AllChallengesOverview: React.FC<AllChallengesOverviewProps> = ({
           <div className="flex items-center gap-4">
             <div className="bg-slate-950/80 border border-slate-800 rounded-2xl p-4 text-center min-w-[120px]">
               <p className="text-[10px] uppercase font-bold tracking-wider text-slate-500">
-                Completed Today
+                Completed / Clean Today
               </p>
               <p className="text-2xl font-black text-emerald-400">
                 {totalCompletedToday}
@@ -158,38 +195,70 @@ export const AllChallengesOverview: React.FC<AllChallengesOverviewProps> = ({
               className="flex items-center gap-2 px-4 py-3.5 rounded-2xl bg-gradient-to-r from-emerald-500 to-teal-400 text-slate-950 font-extrabold text-xs shadow-lg shadow-emerald-500/20 hover:scale-105 active:scale-95 transition-all cursor-pointer"
             >
               <PlusCircle className="w-4 h-4 text-slate-950" />
-              <span>Add New Habit</span>
+              <span>New Habit</span>
             </button>
           </div>
         </div>
       </div>
 
-      {/* Habits List */}
+      {/* Challenges List Cards */}
       <div className="space-y-4">
         {challenges.map((chal) => {
           const stats = calculateChallengeStats(chal);
-          const drawer = reflectionDrawers[chal.id] || { reflection: '', effort: 'normal', isOpen: false };
-          const activeDay = chal.days.find((d) => d.dayNumber === stats.activeDayNumber);
           const isDone = stats.isTodayDone;
+          const isSlipped = stats.isTodaySlipped;
+          const isQuit = chal.habitType === 'quit';
+          const drawer = reflectionDrawers[chal.id] || {
+            reflection: '',
+            effort: 'normal',
+            cravingLevel: 'low',
+            isOpen: false,
+          };
 
           return (
             <div
               key={chal.id}
-              className="rounded-2xl bg-slate-900/70 border border-slate-800/90 p-5 md:p-6 transition-all hover:border-slate-700/80 backdrop-blur-md shadow-lg shadow-black/20"
+              className={`rounded-2xl border transition-all duration-300 p-5 md:p-6 bg-slate-900/60 backdrop-blur-md hover:border-slate-700 shadow-lg ${
+                isQuit
+                  ? isDone
+                    ? 'border-indigo-500/40 bg-gradient-to-r from-indigo-950/20 via-slate-900/80 to-slate-900/60'
+                    : 'border-slate-800'
+                  : isDone
+                  ? 'border-emerald-500/40 bg-gradient-to-r from-emerald-950/20 via-slate-900/80 to-slate-900/60'
+                  : 'border-slate-800'
+              }`}
             >
-              {/* Challenge Main Row */}
-              <div className="flex flex-col lg:flex-row lg:items-center justify-between gap-4">
-                {/* Title & Info */}
-                <div className="flex items-start gap-3.5 flex-1 min-w-0">
-                  <div className="w-11 h-11 rounded-xl bg-slate-800/90 border border-slate-700/60 flex items-center justify-center flex-shrink-0 mt-0.5">
-                    {getHabitIcon(chal.iconName, chal.category)}
+              <div className="flex flex-col lg:flex-row lg:items-center justify-between gap-5">
+                {/* Left: Icon, Mode Tag, Habit Info & Progress */}
+                <div className="flex items-start gap-4 flex-1 min-w-0">
+                  <div
+                    className={`w-12 h-12 rounded-2xl flex items-center justify-center flex-shrink-0 border ${
+                      isQuit
+                        ? 'bg-indigo-500/10 border-indigo-500/30'
+                        : 'bg-slate-800/80 border-slate-700'
+                    }`}
+                  >
+                    {getHabitIcon(chal.iconName, chal.category, isQuit)}
                   </div>
 
-                  <div className="min-w-0 flex-1">
+                  <div className="flex-1 min-w-0">
                     <div className="flex flex-wrap items-center gap-2 mb-1">
-                      <span className="text-xs font-bold text-emerald-400/90 bg-emerald-500/10 px-2 py-0.5 rounded border border-emerald-500/20">
+                      {/* Mode Badge */}
+                      <span
+                        className={`text-[10px] font-extrabold uppercase px-2 py-0.5 rounded border flex items-center gap-1 ${
+                          isQuit
+                            ? 'bg-indigo-500/20 text-indigo-300 border-indigo-500/40'
+                            : 'bg-emerald-500/20 text-emerald-300 border-emerald-500/40'
+                        }`}
+                      >
+                        {isQuit ? <Shield className="w-2.5 h-2.5 text-indigo-400" /> : <Sparkles className="w-2.5 h-2.5 text-emerald-400" />}
+                        {isQuit ? 'Quit Habit' : 'Build Habit'}
+                      </span>
+
+                      <span className="text-xs font-bold text-slate-400 bg-slate-800/80 px-2 py-0.5 rounded border border-slate-700">
                         {chal.category || 'General'}
                       </span>
+
                       <span className="text-xs text-slate-400 flex items-center gap-1 truncate">
                         <Clock className="w-3 h-3 text-slate-500 flex-shrink-0" />
                         <span className="truncate">{chal.cue}</span>
@@ -200,16 +269,28 @@ export const AllChallengesOverview: React.FC<AllChallengesOverviewProps> = ({
                       {chal.title}
                     </h3>
 
+                    {/* Urge Replacement Plan preview if quit */}
+                    {isQuit && chal.urgeReplacementPlan && (
+                      <p className="text-xs text-indigo-300/90 flex items-center gap-1.5 mt-1 truncate">
+                        <Lightbulb className="w-3.5 h-3.5 text-amber-300 flex-shrink-0" />
+                        <span className="truncate">Plan: {chal.urgeReplacementPlan}</span>
+                      </p>
+                    )}
+
                     {/* Progress Bar & Text */}
                     <div className="flex items-center gap-3 mt-2 max-w-md">
                       <div className="flex-1 h-2 bg-slate-950 rounded-full overflow-hidden border border-slate-800">
                         <div
-                          className="h-full bg-gradient-to-r from-emerald-500 to-teal-400 rounded-full"
+                          className={`h-full rounded-full ${
+                            isQuit
+                              ? 'bg-gradient-to-r from-indigo-500 to-blue-400'
+                              : 'bg-gradient-to-r from-emerald-500 to-teal-400'
+                          }`}
                           style={{ width: `${Math.max(stats.completionPercentage, 2)}%` }}
                         />
                       </div>
                       <span className="text-[11px] font-bold text-slate-400 flex-shrink-0">
-                        {stats.completedCount} / 21 ({stats.completionPercentage}%)
+                        {isQuit ? `${stats.cleanCount} Clean` : `${stats.completedCount} Done`} / 21 ({stats.completionPercentage}%)
                       </span>
                     </div>
                   </div>
@@ -219,18 +300,30 @@ export const AllChallengesOverview: React.FC<AllChallengesOverviewProps> = ({
                 <div className="flex items-center gap-3 justify-between lg:justify-end flex-wrap pt-2 lg:pt-0 border-t lg:border-t-0 border-slate-800">
                   {/* Streak */}
                   {stats.streak > 0 && (
-                    <div className="flex items-center gap-1.5 px-3 py-1.5 rounded-xl bg-amber-500/10 border border-amber-500/20 text-amber-300 text-xs font-bold">
-                      <Flame className="w-3.5 h-3.5 text-amber-400 animate-pulse" />
-                      <span>{stats.streak}d streak</span>
+                    <div
+                      className={`flex items-center gap-1.5 px-3 py-1.5 rounded-xl border text-xs font-bold ${
+                        isQuit
+                          ? 'bg-indigo-500/10 border-indigo-500/30 text-indigo-300'
+                          : 'bg-amber-500/10 border-amber-500/20 text-amber-300'
+                      }`}
+                    >
+                      {isQuit ? <Shield className="w-3.5 h-3.5 text-indigo-400" /> : <Flame className="w-3.5 h-3.5 text-amber-400 animate-pulse" />}
+                      <span>{stats.streak}d {isQuit ? 'clean' : 'streak'}</span>
                     </div>
                   )}
 
                   {/* Day check-in button or status */}
                   {isDone ? (
                     <div className="flex items-center gap-2">
-                      <div className="flex items-center gap-1.5 px-3.5 py-2 rounded-xl bg-emerald-500/20 border border-emerald-500/40 text-emerald-300 text-xs font-bold">
-                        <CheckCircle2 className="w-4 h-4 text-emerald-400" />
-                        <span>Day {stats.activeDayNumber} Done</span>
+                      <div
+                        className={`flex items-center gap-1.5 px-3.5 py-2 rounded-xl border text-xs font-bold ${
+                          isQuit
+                            ? 'bg-indigo-500/20 border-indigo-500/40 text-indigo-300'
+                            : 'bg-emerald-500/20 border-emerald-500/40 text-emerald-300'
+                        }`}
+                      >
+                        {isQuit ? <Shield className="w-4 h-4 text-indigo-400" /> : <CheckCircle2 className="w-4 h-4 text-emerald-400" />}
+                        <span>{isQuit ? `Day ${stats.activeDayNumber} Clean` : `Day ${stats.activeDayNumber} Done`}</span>
                       </div>
                       <button
                         onClick={() => onUndoDay(chal.id, stats.activeDayNumber)}
@@ -240,37 +333,56 @@ export const AllChallengesOverview: React.FC<AllChallengesOverviewProps> = ({
                         Undo
                       </button>
                     </div>
+                  ) : isSlipped ? (
+                    <div className="flex items-center gap-2">
+                      <div className="flex items-center gap-1.5 px-3 py-2 rounded-xl bg-rose-500/20 border border-rose-500/40 text-rose-300 text-xs font-bold">
+                        <AlertTriangle className="w-4 h-4 text-rose-400" />
+                        <span>Slip Logged</span>
+                      </div>
+                      <button
+                        onClick={() => onUndoDay(chal.id, stats.activeDayNumber)}
+                        className="text-[11px] text-slate-500 hover:text-rose-400 p-1"
+                      >
+                        Reset
+                      </button>
+                    </div>
                   ) : (
                     <div className="flex items-center gap-2">
                       <button
-                        onClick={() => handleQuickCheckIn(chal)}
-                        className="flex items-center gap-1.5 px-4 py-2 rounded-xl bg-gradient-to-r from-emerald-500 to-teal-400 text-slate-950 text-xs font-extrabold shadow-md shadow-emerald-500/20 hover:scale-105 active:scale-95 transition-all cursor-pointer"
+                        onClick={() => handleQuickCheckIn(chal, false)}
+                        className={`flex items-center gap-1.5 px-4 py-2 rounded-xl text-xs font-extrabold shadow-md hover:scale-105 active:scale-95 transition-all cursor-pointer ${
+                          isQuit
+                            ? 'bg-gradient-to-r from-indigo-500 to-blue-500 text-white shadow-indigo-500/20'
+                            : 'bg-gradient-to-r from-emerald-500 to-teal-400 text-slate-950 shadow-emerald-500/20'
+                        }`}
                       >
-                        <CheckCircle2 className="w-4 h-4" />
-                        <span>Check In Day {stats.activeDayNumber}</span>
+                        {isQuit ? <Shield className="w-4 h-4" /> : <CheckCircle2 className="w-4 h-4" />}
+                        <span>{isQuit ? '🛡️ Stayed Clean Today' : `Check In Day ${stats.activeDayNumber}`}</span>
                       </button>
 
                       <button
                         onClick={() => toggleDrawer(chal.id)}
                         className={`p-2 rounded-xl border text-xs transition-colors ${
                           drawer.isOpen
-                            ? 'bg-emerald-500/20 border-emerald-500/40 text-emerald-300'
+                            ? isQuit
+                              ? 'bg-indigo-500/20 border-indigo-500/40 text-indigo-300'
+                              : 'bg-emerald-500/20 border-emerald-500/40 text-emerald-300'
                             : 'bg-slate-900 border-slate-800 text-slate-400 hover:text-slate-200'
                         }`}
-                        title="Add reflection note before check-in"
+                        title="Add reflection or log craving"
                       >
                         <MessageSquare className="w-4 h-4" />
                       </button>
                     </div>
                   )}
 
-                  {/* View Details / 3x7 Grid Switcher */}
+                  {/* Calendar / Focus Cockpit View Switcher */}
                   <button
                     onClick={() => onFocusChallenge(chal.id)}
                     className="flex items-center gap-1.5 px-3 py-2 rounded-xl bg-slate-800/80 hover:bg-slate-700/80 border border-slate-700/60 text-slate-200 text-xs font-semibold transition-colors cursor-pointer"
-                    title="Open 3x7 Matrix View"
+                    title="Open Calendar Cockpit View"
                   >
-                    <span>3×7 Matrix</span>
+                    <span>Calendar</span>
                     <ExternalLink className="w-3.5 h-3.5 text-slate-400" />
                   </button>
 
@@ -294,77 +406,88 @@ export const AllChallengesOverview: React.FC<AllChallengesOverviewProps> = ({
                 </div>
               </div>
 
-              {/* Reflection Drawer if opened */}
+              {/* Expandable Quick Reflection Drawer */}
               {drawer.isOpen && !isDone && (
-                <div className="mt-4 pt-4 border-t border-slate-800/80 space-y-3 animate-fade-in">
-                  <div>
-                    <label className="block text-[11px] font-semibold text-slate-400 mb-1">
-                      Quick Reflection for Day {stats.activeDayNumber}
-                    </label>
-                    <input
-                      type="text"
-                      value={drawer.reflection}
-                      onChange={(e) => handleReflectionChange(chal.id, e.target.value)}
-                      placeholder="e.g. Felt great, knocked it out first thing in the morning!"
-                      className="w-full bg-slate-950/80 border border-slate-800 rounded-xl px-3 py-2 text-xs text-slate-200 placeholder-slate-500 focus:outline-none focus:border-emerald-500"
-                    />
-                  </div>
-
-                  <div className="flex items-center justify-between gap-3">
-                    <div className="flex items-center gap-2">
-                      <span className="text-[11px] text-slate-500">Effort:</span>
-                      {(['easy', 'normal', 'tough'] as const).map((lvl) => (
-                        <button
-                          key={lvl}
-                          type="button"
-                          onClick={() => handleEffortChange(chal.id, lvl)}
-                          className={`text-[10px] px-2 py-1 rounded-lg border font-semibold capitalize ${
-                            drawer.effort === lvl
-                              ? 'bg-emerald-500/20 border-emerald-500/50 text-emerald-300'
-                              : 'bg-slate-950/60 border-slate-800 text-slate-400'
-                          }`}
-                        >
-                          {lvl}
-                        </button>
-                      ))}
+                <div className="mt-4 pt-4 border-t border-slate-800/80 animate-fade-in space-y-3">
+                  <div className="flex flex-col sm:flex-row sm:items-center gap-3">
+                    <div className="flex-1">
+                      <input
+                        type="text"
+                        value={drawer.reflection}
+                        onChange={(e) => handleReflectionChange(chal.id, e.target.value)}
+                        placeholder={
+                          isQuit
+                            ? 'How were cravings today? How did you hold the line?'
+                            : 'Add a 1-line reflection or key accomplishment...'
+                        }
+                        className="w-full bg-slate-950 border border-slate-800 rounded-xl px-3.5 py-2 text-xs text-slate-100 placeholder-slate-500 focus:outline-none focus:border-indigo-500"
+                        autoFocus
+                      />
                     </div>
 
+                    {/* Mode-specific selector */}
+                    {isQuit ? (
+                      <div className="flex items-center gap-1 bg-slate-950 p-1 rounded-xl border border-slate-800">
+                        {(['low', 'medium', 'high'] as const).map((level) => (
+                          <button
+                            key={level}
+                            type="button"
+                            onClick={() => handleCravingChange(chal.id, level)}
+                            className={`px-2.5 py-1 rounded-lg text-[10px] font-bold capitalize transition-all ${
+                              drawer.cravingLevel === level
+                                ? 'bg-indigo-500 text-white'
+                                : 'text-slate-400 hover:text-slate-200'
+                            }`}
+                          >
+                            {level} Craving
+                          </button>
+                        ))}
+                      </div>
+                    ) : (
+                      <div className="flex items-center gap-1 bg-slate-950 p-1 rounded-xl border border-slate-800">
+                        {(['easy', 'normal', 'tough'] as const).map((lvl) => (
+                          <button
+                            key={lvl}
+                            type="button"
+                            onClick={() => handleEffortChange(chal.id, lvl)}
+                            className={`px-2.5 py-1 rounded-lg text-[10px] font-bold capitalize transition-all ${
+                              drawer.effort === lvl
+                                ? 'bg-emerald-500 text-slate-950'
+                                : 'text-slate-400 hover:text-slate-200'
+                            }`}
+                          >
+                            {lvl}
+                          </button>
+                        ))}
+                      </div>
+                    )}
+
                     <button
-                      type="button"
-                      onClick={() => handleQuickCheckIn(chal)}
-                      className="px-3 py-1.5 rounded-lg bg-emerald-500 text-slate-950 font-bold text-xs"
+                      onClick={() => handleQuickCheckIn(chal, false)}
+                      className={`px-4 py-2 rounded-xl text-xs font-bold transition-all cursor-pointer ${
+                        isQuit
+                          ? 'bg-indigo-500 hover:bg-indigo-400 text-white'
+                          : 'bg-emerald-500 hover:bg-emerald-400 text-slate-950'
+                      }`}
                     >
-                      Check In Now
+                      Save & Complete
                     </button>
                   </div>
+
+                  {/* Secondary slip link for Quit habits */}
+                  {isQuit && (
+                    <div className="text-right">
+                      <button
+                        type="button"
+                        onClick={() => handleQuickCheckIn(chal, true)}
+                        className="text-[11px] text-slate-500 hover:text-rose-400 transition-colors underline"
+                      >
+                        I had a slip today (log without clearing past clean days)
+                      </button>
+                    </div>
+                  )}
                 </div>
               )}
-
-              {/* If completed today, display note if any */}
-              {isDone && activeDay?.reflection && (
-                <div className="mt-3 p-2.5 rounded-xl bg-slate-950/60 border border-slate-800/60 text-xs text-slate-400 italic">
-                  "{activeDay.reflection}"
-                </div>
-              )}
-
-              {/* 21-Day Mini Strip (dots) */}
-              <div className="mt-4 pt-3 border-t border-slate-800/60">
-                <div className="flex items-center justify-between gap-1 overflow-x-auto no-scrollbar py-1">
-                  {chal.days.map((d) => (
-                    <div
-                      key={d.dayNumber}
-                      title={`Day ${d.dayNumber}: ${d.completed ? 'Done' : d.dayNumber === stats.activeDayNumber ? 'Today' : 'Upcoming'}`}
-                      className={`h-2.5 flex-1 min-w-[10px] rounded-sm transition-all ${
-                        d.completed
-                          ? 'bg-emerald-500 shadow-sm shadow-emerald-500/40'
-                          : d.dayNumber === stats.activeDayNumber
-                          ? 'bg-emerald-400/80 ring-2 ring-emerald-400/40'
-                          : 'bg-slate-800/80'
-                      }`}
-                    />
-                  ))}
-                </div>
-              </div>
             </div>
           );
         })}
