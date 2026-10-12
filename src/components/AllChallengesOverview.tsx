@@ -21,6 +21,7 @@ import {
   Lightbulb,
   AlertTriangle,
 } from 'lucide-react';
+import { EyeMascot } from './EyeMascot';
 
 interface AllChallengesOverviewProps {
   challenges: Challenge[];
@@ -170,9 +171,12 @@ export const AllChallengesOverview: React.FC<AllChallengesOverviewProps> = ({
               <Sparkles className="w-3.5 h-3.5" />
               Multi-Habit Cockpit Overview
             </div>
-            <h2 className="text-2xl md:text-3xl font-extrabold text-white tracking-tight">
-              Today's Habit Command Center
-            </h2>
+            <div className="flex items-center gap-3 flex-wrap">
+              <h2 className="text-2xl md:text-3xl font-extrabold text-white tracking-tight">
+                Today's Habit Command Center
+              </h2>
+              <EyeMascot />
+            </div>
             <p className="text-xs md:text-sm text-slate-400 mt-1 max-w-lg">
               Monitor both your positive routines (Build) and abstinence streaks (Quit) in one unified screen.
             </p>
